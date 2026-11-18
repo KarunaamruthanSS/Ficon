@@ -1,0 +1,93 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "offconv"
+version = "0.1.0"
+description = "An offline file converter"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "AGPL-3.0-or-later"
+license-files = ["LICENSE"]
+keywords = ["converter", "image", "offline", "privacy"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Multimedia :: Graphics :: Graphics Conversion",
+]
+
+# Pillow parses untrusted files, so the floor is a version with current
+# security fixes rather than the oldest one that happens to work.
+dependencies = ["pillow>=10.3"]
+
+[project.optional-dependencies]
+heic = ["pillow-heif>=0.16"]
+dev = ["pytest>=8", "pyinstaller>=6", "ruff>=0.6", "mypy>=1.11"]
+
+[project.scripts]
+offconv = "offconv.cli:main"
+
+[project.urls]
+<<<<<<< HEAD
+Source = "https://github.com/KarunaamruthanSS/Ficon"
+Issues = "https://github.com/KarunaamruthanSS/Ficon/issues"
+=======
+Source = "https://github.com/KarunaamruthanSS/File-Convertor"
+Issues = "https://github.com/KarunaamruthanSS/File-Convertor/issues"
+>>>>>>> b0a3f74e7585ecff3f3dd3323b9242d7d02e75be
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+offconv = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+# A warning from a decoder is something to look at, not scroll past.
+filterwarnings = ["error::DeprecationWarning", "error::SyntaxWarning"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+target-version = "py310"
+
+[tool.ruff.lint]
+select = [
+    "E", "F", "W",  # pycodestyle, pyflakes
+    "I",            # import order
+    "B",            # likely bugs
+    "UP",           # outdated syntax
+    "SIM",          # needless complexity
+    "RUF",
+    "S",            # security: bandit rules
+]
+ignore = [
+    "S101",  # assert is how tests are written
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests reach into private helpers on purpose, and build fake inputs.
+"tests/*" = ["S105", "S106", "S108", "SLF001"]
+
+[tool.mypy]
+files = ["src"]
+python_version = "3.10"
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_return_any = true
+disallow_untyped_defs = false
+
+# pillow-heif is optional and ships no type stubs.
+[[tool.mypy.overrides]]
+module = ["pillow_heif"]
+ignore_missing_imports = true
