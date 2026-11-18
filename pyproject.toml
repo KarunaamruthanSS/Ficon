@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "offconv"
-version = "0.1.0"
+version = "1.1.0"
 description = "An offline file converter"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -30,6 +30,20 @@ dependencies = ["pillow>=10.3"]
 
 [project.optional-dependencies]
 heic = ["pillow-heif>=0.16"]
+# PyMuPDF is AGPL, which is why offconv is too.
+#
+# These are large: PyMuPDF 2.x brings onnxruntime and layout models that
+# offconv does not use, and pdf2docx brings OpenCV, which together are
+# most of a 300MB install. offconv works with PyMuPDF 1.x as well, so
+# `pip install "pymupdf<2"` alongside this extra trims about 180MB. The
+# floor is left open rather than capped because PyMuPDF parses untrusted
+# PDFs and its security fixes should be allowed through.
+docs = [
+    "pymupdf>=1.24",
+    "pdf2docx>=0.5.8",
+    "python-docx>=1.1",
+    "reportlab>=4.1",
+]
 dev = ["pytest>=8", "pyinstaller>=6", "ruff>=0.6", "mypy>=1.11"]
 
 [project.scripts]
@@ -84,5 +98,5 @@ disallow_untyped_defs = false
 
 # pillow-heif is optional and ships no type stubs.
 [[tool.mypy.overrides]]
-module = ["pillow_heif"]
+module = ["pillow_heif", "pdf2docx", "pymupdf", "docx.*", "reportlab.*"]
 ignore_missing_imports = true

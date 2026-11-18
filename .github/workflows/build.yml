@@ -26,7 +26,7 @@ jobs:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: pyproject.toml
-      - run: python -m pip install -e ".[heic,dev]"
+      - run: python -m pip install -e ".[heic,docs,dev]"
       - name: ruff
         run: python -m ruff check --output-format=github .
       - name: mypy
@@ -46,7 +46,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
           cache-dependency-path: pyproject.toml
-      - run: python -m pip install -e ".[heic,dev]"
+      - run: python -m pip install -e ".[heic,docs,dev]"
       - name: pytest
         run: python -m pytest -q
       - name: Converter runs from a clean install
@@ -68,13 +68,22 @@ jobs:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: pyproject.toml
-      - run: python -m pip install -e ".[heic,dev]"
+      - run: python -m pip install -e ".[heic,docs,dev]"
       - name: PyInstaller
         run: >
           python -m PyInstaller --onefile --console --name offconv --paths src
-          --collect-all pillow_heif --clean --noconfirm run.py
+          --collect-all pillow_heif --collect-all pymupdf --collect-all pdf2docx
+          --clean --noconfirm run.py
       - name: The built exe actually starts
         run: dist\offconv.exe --help
+      - name: The built exe can convert a document
+        shell: pwsh
+        run: |
+          # The document libraries are the ones most likely to be left
+          # out of a bundle, and --help would not notice.
+          "hello from CI" | Out-File ci-check.txt -Encoding utf8
+          dist\offconv.exe convert ci-check.txt --to pdf
+          if (-not (Test-Path ci-check.pdf)) { throw "no PDF was produced" }
       - name: SHA-256
         shell: pwsh
         run: |
@@ -93,21 +102,82 @@ jobs:
             dist/offconv.exe.sha256
           if-no-files-found: error
 
+  # The Linux single file, mirroring build.sh. Built here for the same
+  # reason as the .exe: a runner has no Python or Pillow on it, so a
+  # bundle that forgot to include something fails here and would have
+  # passed on a developer's own machine.
+  build-linux:
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - run: python -m pip install -e ".[heic,docs,dev]"
+      - name: PyInstaller
+        run: >
+          python -m PyInstaller --onefile --console --name offconv --paths src
+          --collect-all pillow_heif --collect-all pymupdf --collect-all pdf2docx
+          --clean --noconfirm run.py
+      - name: The built file actually starts
+        run: ./dist/offconv --help
+      - name: The built file can convert a document
+        run: |
+          # The document libraries are the ones most likely to be left
+          # out of a bundle, and --help would not notice.
+          echo "hello from CI" > ci-check.txt
+          ./dist/offconv convert ci-check.txt --to pdf
+          test -f ci-check.pdf || { echo "no PDF was produced"; exit 1; }
+      - name: SHA-256
+        run: |
+          cd dist
+          sha256sum offconv | tee offconv.sha256
+      - name: Build provenance attestation
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: dist/offconv
+      - uses: actions/upload-artifact@v4
+        with:
+          name: offconv-linux-x64
+          path: |
+            dist/offconv
+            dist/offconv.sha256
+          if-no-files-found: error
+
   release:
     # Only a v* tag publishes; an ordinary push to main just builds.
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [build-exe]
+    needs: [build-exe, build-linux]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: offconv-windows-x64
+          pattern: offconv-*
+          merge-multiple: true
           path: dist
-      - uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            dist/offconv.exe
-            dist/offconv.exe.sha256
-          generate_release_notes: true
+      # Published with the GitHub CLI, which is pre-installed on the
+      # runner, rather than a third-party action: this job holds
+      # contents: write, and the fewer outside actions that run with it
+      # the smaller the thing that has to be trusted.
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes \
+            --verify-tag \
+            dist/offconv.exe \
+            dist/offconv.exe.sha256 \
+            dist/offconv \
+            dist/offconv.sha256

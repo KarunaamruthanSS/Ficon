@@ -40,6 +40,7 @@ class Options:
     quality: int = 90
     resize: tuple[int, int] | None = None  # max width, max height
     max_pixels: int = 0  # 0 means "use the default budget"
+    max_pages: int = 0  # 0 means "use the default budget"
     keep_metadata: bool = False
     extra: dict = field(default_factory=dict)
 
@@ -53,6 +54,8 @@ class Options:
                 raise ValueError("resize width and height must be 1 or more")
         if self.max_pixels < 0:
             raise ValueError("max_pixels cannot be negative")
+        if self.max_pages < 0:
+            raise ValueError("max_pages cannot be negative")
 
 
 _CONVERTERS: dict[tuple[str, str], ConvertFn] = {}

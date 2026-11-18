@@ -13,6 +13,7 @@ untrusted data, so the declared length inside the header is checked too.
 from __future__ import annotations
 
 import re
+import zipfile
 from pathlib import Path
 
 # Enough for every signature below, plus the slack the PDF spec allows
@@ -36,6 +37,16 @@ _PLAUSIBLE_EXTENSION = re.compile(r"\A[a-z0-9]{1,8}\Z")
 _HEIC_BRANDS = frozenset(
     {b"heic", b"heix", b"hevc", b"hevx", b"mif1", b"msf1", b"heim", b"heis"}
 )
+
+# A .docx is a zip, and so are .xlsx, .pptx, .odt, .jar and a plain
+# archive. The member that settles it is named here.
+_ZIP_MAGIC = (b"PK\x03\x04", b"PK\x05\x06", b"PK\x07\x08")
+_OOXML_MARKERS = {"word/document.xml": "docx"}
+
+# Legacy .doc, .xls and .ppt share one OLE2 container header. offconv
+# cannot convert them, but naming the format gives a straight answer
+# instead of a parser error from deep inside a library.
+_OLE2_MAGIC = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"
 
 
 def normalise(name: str) -> str:
@@ -81,6 +92,28 @@ def _from_content(head: bytes) -> str | None:
     # real-world PDFs make use of that.
     if b"%PDF-" in head[:HEAD_BYTES]:
         return "pdf"
+    if head.startswith(_OLE2_MAGIC):
+        return "doc"
+    return None
+
+
+def _from_zip(path: Path) -> str | None:
+    """Name the OOXML document inside a zip, if that is what this is.
+
+    Only the central directory is read: the member names are enough to
+    tell a Word document from a spreadsheet or an ordinary archive, and
+    nothing has to be decompressed to find out. A zip that is not a
+    document we handle returns None, so it is reported as unrecognised
+    rather than handed to a document parser.
+    """
+    try:
+        with zipfile.ZipFile(path) as archive:
+            names = set(archive.namelist())
+    except (zipfile.BadZipFile, OSError):
+        return None
+    for marker, format_name in _OOXML_MARKERS.items():
+        if marker in names:
+            return format_name
     return None
 
 
@@ -95,5 +128,12 @@ def detect(path: Path) -> str:
     found = _from_content(head)
     if found:
         return found
+    if head.startswith(_ZIP_MAGIC):
+        found = _from_zip(path)
+        if found:
+            return found
+        # A zip we do not recognise is not a document. Saying so beats
+        # falling back to a .docx extension that the content denies.
+        return ""
     extension = normalise(path.suffix)
     return extension if _PLAUSIBLE_EXTENSION.match(extension) else ""

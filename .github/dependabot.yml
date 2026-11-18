@@ -1,0 +1,29 @@
+# Dependabot keeps the two things offconv is exposed through up to date:
+# the libraries that parse untrusted files, and the actions that run with
+# write access during a release. See SECURITY.md.
+
+version: 2
+
+updates:
+  # Pillow, pillow-heif, PyMuPDF, pdf2docx, python-docx and reportlab are
+  # all read from pyproject.toml, extras included. These are the decoders
+  # SECURITY.md calls the largest part of the attack surface, so a fix in
+  # one of them is the kind of update worth getting promptly.
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      # The dev tools move often and matter least; one PR for the lot of
+      # them keeps them from burying a decoder update.
+      development:
+        dependency-type: development
+
+  # The release job runs with contents: write, so a compromised action is
+  # a direct path to publishing a binary under this repository's name.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5

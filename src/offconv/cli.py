@@ -2,6 +2,7 @@
 
     offconv convert photo.png --to jpg
     offconv convert *.png holiday/ --to webp --quality 80 --out converted
+    offconv convert report.pdf --to docx
     offconv formats
 """
 
@@ -133,8 +134,19 @@ def convert_one(
         raise ConversionError(f"already {target}")
     route = registry.find_route(source, target)
     if route is None:
-        known = ", ".join(registry.targets_for(source)) or "nothing yet"
-        raise ConversionError(f"cannot convert {source} to {target} (can do: {known})")
+        reachable = registry.targets_for(source)
+        if reachable:
+            raise ConversionError(
+                f"cannot convert {source} to {target} (can do: {', '.join(reachable)})"
+            )
+        # Nothing at all leads out of this format. Usually that is because
+        # the optional libraries for it are not installed, which is worth
+        # saying: "nothing yet" on its own reads like a missing feature.
+        raise ConversionError(
+            f"cannot convert {source} to anything; if offconv should handle "
+            f"{source}, the libraries for it are not installed "
+            '(pip install -e ".[heic,docs]")'
+        )
 
     folder = out_dir or src.parent
     try:
@@ -260,6 +272,7 @@ def cmd_convert(args: argparse.Namespace) -> int:
             quality=args.quality,
             resize=args.resize,
             max_pixels=args.max_pixels,
+            max_pages=args.max_pages,
             keep_metadata=args.keep_metadata,
         )
     except ValueError as exc:
@@ -335,6 +348,15 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "refuse images bigger than this many pixels (default "
             f"{safety.DEFAULT_MAX_PIXELS:,}; 0 keeps the default, raise it for giant scans)"
+        ),
+    )
+    conv.add_argument(
+        "--max-pages",
+        type=_pixels,
+        default=0,
+        help=(
+            "refuse documents with more pages than this (default "
+            f"{safety.DEFAULT_MAX_PAGES:,}; 0 keeps the default)"
         ),
     )
     conv.add_argument(

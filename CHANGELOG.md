@@ -1,6 +1,73 @@
 # Changelog
 
-## Unreleased
+## 1.1.0
+
+### Added
+
+- PDF to DOCX and DOCX to PDF, the two conversions this version is for,
+  plus PDF to TXT, TXT to PDF and DOCX to TXT. Everything chains, so
+  `--to docx` works from a photo as well: HEIC to PNG to PDF to DOCX.
+- DOCX to PDF picks its engine when it runs. LibreOffice does it when
+  `soffice` is on PATH or in the usual place on Windows or macOS, and the
+  result is laid out the way Word would. Without it, python-docx and
+  reportlab redraw the document: text, headings, bold and italic, bullet
+  lists, tables and inline pictures survive, and the page layout is
+  reflowed into one column. The result says which engine ran, because
+  only the first is a faithful copy.
+- A new `docs` extra holds the libraries for all of this. Like `heic`,
+  it is optional: without it the conversions are not registered,
+  `offconv formats` does not offer them, and the rest of the tool is
+  unaffected.
+- `--max-pages`, for documents with more pages than the default budget
+  of 5,000.
+- DOCX is detected by looking inside the zip for `word/document.xml`,
+  rather than trusting the extension. A zip that is not a document it
+  recognises is reported as unrecognised instead of being handed to a
+  document parser, so a renamed .xlsx or .jar cannot get in that way.
+- The pre-2007 .doc format is named when it is seen, so the refusal says
+  what the file actually is instead of failing somewhere inside a parser.
+
+### Safety
+
+- A .docx is a zip, and a zip can claim to expand to far more than it
+  contains. The central directory is read and the claimed sizes added up
+  before anything is extracted, and an archive over 1GiB unpacked, over
+  200x its packed size, or holding more than 10,000 parts is refused.
+- PDFs are refused on their page count, read from the document index
+  before any page is parsed or rendered.
+- A password-protected PDF is refused rather than being probed.
+- Plain text is read whole, so it has a ceiling of its own at 64MB.
+- LibreOffice is run with a throwaway user profile, with the document
+  staged under a fixed plain name so that a file called `--convert-to`
+  cannot be read as an option, and with a timeout, so a soffice that
+  hangs does not hang offconv with it.
+
+### Fixed
+
+- Bullet lists came out of DOCX to PDF empty. reportlab's `ListFlowable`
+  keeps the list it is handed rather than copying it, so clearing that
+  list to start the next group silently emptied the finished one.
+- pdf2docx's progress log and PyMuPDF's `fitz` deprecation notice no
+  longer appear in offconv's output. pdf2docx logs through the root
+  logger, so it is filtered by the module its records come from, which
+  leaves a host application's own logging alone.
+
+### Internal
+
+- CI installs the `docs` extra, so the document conversions are actually
+  exercised rather than skipped, and each built binary is made to convert
+  a file as well as print its help — the document libraries are the ones
+  most likely to be missed by a bundle, and `--help` would not notice.
+- The Linux single file is built in CI alongside the Windows .exe, which
+  the README had been describing for a while before it was true. Both are
+  attested and attached to a tagged release.
+- The release job publishes with the GitHub CLI instead of a third-party
+  action, so the only actions holding `contents: write` are first-party
+  ones, and `.github/dependabot.yml` now exists to watch the decoders and
+  the actions. Both were described in the 1.0.0 notes below before they
+  were configured.
+
+## 1.0.0
 
 ### Safety
 

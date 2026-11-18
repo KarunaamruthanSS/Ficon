@@ -11,10 +11,15 @@ a few days.
 
 offconv exists to parse files its user did not create: a download, an
 email attachment, a photo from someone else's phone. Those files are
-treated as hostile input. The decoders themselves (Pillow, and libheif
-through pillow-heif) are the largest part of the attack surface, which is
-why the dependency floor is a current version and why Dependabot watches
-it.
+treated as hostile input. The decoders themselves (Pillow, libheif
+through pillow-heif, and with the `docs` extra PyMuPDF and python-docx)
+are the largest part of the attack surface, which is why the dependency
+floor is a current version and why Dependabot watches it.
+
+Documents widen that surface considerably. A PDF is a programmable
+container, a .docx is a zip full of XML, and both are parsed by large
+third-party libraries. If you installed the `docs` extra, you are
+running those parsers over whatever you convert.
 
 ## The guards that are in place
 
@@ -29,6 +34,11 @@ it.
 | Conversion done in a temporary folder, published with one `os.replace` | `cli.convert_one` | A half-written file being left where the user will mistake it for a result. |
 | Worker count capped | `cli.MAX_JOBS` | `--jobs 100000` turning the pixel budget into a hundred thousand times the memory. |
 | EXIF dropped unless `--keep-metadata` | `images._metadata` | GPS position, camera serial and owner name travelling with a file about to be shared. |
+| Zip claims added up before extracting | `safety.check_zip_bomb` | A .docx of a few hundred kilobytes that unpacks to gigabytes. |
+| Page budget checked from the document index | `safety.check_page_budget` | A PDF declaring thousands of pages, each one rendered. |
+| Encrypted PDFs refused | `documents._open_pdf` | Probing a password-protected file instead of saying so. |
+| Text size ceiling | `documents.MAX_TEXT_BYTES` | A multi-gigabyte .txt read whole into memory. |
+| LibreOffice given a fixed argument list, a throwaway profile and a timeout | `documents._soffice_to_pdf` | A file named `--convert-to` being read as an option, state shared with the user's own LibreOffice, and a soffice that never returns. |
 
 ## Limits worth knowing
 
@@ -37,6 +47,18 @@ it.
   Pillow memory-safe. Keep the dependencies current.
 - offconv does not sandbox the decoders. Converting something you have
   real reason to distrust is better done in a container or a VM.
+- **LibreOffice is not sandboxed either, and it is a far larger program
+  than offconv.** When it is installed, DOCX to PDF hands your document
+  to it. A Word document can reference remote content, and offconv does
+  not stop LibreOffice acting on that, so the "nothing is uploaded"
+  promise covers offconv's own behaviour and not a converter it shells
+  out to. Uninstall LibreOffice, or keep it off PATH, if that matters
+  more to you than layout fidelity; the built-in reflow engine makes no
+  network calls.
+- PDF to DOCX reconstructs a layout by guesswork, and PDF to TXT of a
+  scan produces nothing at all. Neither is a security property, but both
+  are worth knowing before trusting the output of a batch you did not
+  check.
 - Released binaries are built in CI and carry a SHA-256 checksum and a
   build provenance attestation. Verify them with
   `gh attestation verify offconv.exe --repo KarunaamruthanSS/Ficon`.
