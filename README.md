@@ -1,18 +1,10 @@
-<<<<<<< HEAD
 # Ficon
-=======
-# File-Convertor
->>>>>>> b0a3f74e7585ecff3f3dd3323b9242d7d02e75be
 
 An offline file converter. Files are converted on your own computer and
 nothing is uploaded.
 
 The command, the Python package and the built program are all called
-<<<<<<< HEAD
 `offconv`, so the name you type is not the name of the repository.
-=======
-`offconv`, which is shorter to type than the repository name.
->>>>>>> b0a3f74e7585ecff3f3dd3323b9242d7d02e75be
 
 This is phase 1: the foundation and image conversion.
 
@@ -35,13 +27,8 @@ This is phase 1: the foundation and image conversion.
 ## Get it
 
 ```
-<<<<<<< HEAD
 git clone https://github.com/KarunaamruthanSS/Ficon.git
 cd Ficon
-=======
-git clone https://github.com/KarunaamruthanSS/File-Convertor.git
-cd File-Convertor
->>>>>>> b0a3f74e7585ecff3f3dd3323b9242d7d02e75be
 pip install -e ".[heic]"
 ```
 

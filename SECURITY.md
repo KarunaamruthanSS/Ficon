@@ -39,11 +39,7 @@ it.
   real reason to distrust is better done in a container or a VM.
 - Released binaries are built in CI and carry a SHA-256 checksum and a
   build provenance attestation. Verify them with
-<<<<<<< HEAD
   `gh attestation verify offconv.exe --repo KarunaamruthanSS/Ficon`.
-=======
-  `gh attestation verify offconv.exe --repo KarunaamruthanSS/File-Convertor`.
->>>>>>> b0a3f74e7585ecff3f3dd3323b9242d7d02e75be
 - The Windows build is unsigned, so SmartScreen will warn about it. That
   is expected, and it also means a download cannot be told apart from a
   tampered copy by signature alone — use the checksum.
